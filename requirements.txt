@@ -1,8 +1,0 @@
-plyfile
-tqdm
-opencv-python
-lpips
-submodules/diff-gaussian-rasterization
-submodules/fused-ssim
-submodules/simple-knn
-submodules/graphdecoviewer
