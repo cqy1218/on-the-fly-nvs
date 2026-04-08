@@ -1,4 +1,6 @@
-测试
+本项目仅做代码阅读功能，原项目可参阅本项目fork的源代码地址。本项目内容化繁为简，仅保留和分析核心代码。
+
+原项目地址：https://github.com/graphdeco-inria/on-the-fly-nvs
 
 # On-the-fly Reconstruction for Large-Scale Novel View Synthesis from Unposed Images
 [Andreas Meuleman](https://ameuleman.github.io/), 
@@ -44,84 +46,11 @@ We propose a fast, on-the-fly 3D Gaussian Splatting method that jointly estimate
   </picture>
 </a>
 
-## Citation
-If you find this code useful in a publication, please use the following citation:
-```
-@article{meuleman2025onthefly,
-  title={On-the-fly Reconstruction for Large-Scale Novel View Synthesis from Unposed Images},
-  author={Meuleman, Andreas and Shah, Ishaan and Lanvin, Alexandre and Kerbl, Bernhard and Drettakis, George},
-  journal={ACM Transactions on Graphics},
-  volume={44},
-  number={4},
-  year={2025}
-}
-```
-
-## Setup 
-Tested on Ubuntu 22.04 and Windows 11 with PyTorch 2.7.0, and CUDA 11.8 and 12.8.
-<br>
-Create the environment:
-```bash
-git clone --recursive https://github.com/graphdeco-inria/on-the-fly-nvs.git
-cd on-the-fly-nvs
-conda create -n onthefly_nvs python=3.12 -y
-conda activate onthefly_nvs
-```
-Default setup with CUDA 12.8 (check your compute platform with `nvcc --version`):
-```pwsh
-# Windows Only
-SET DISTUTILS_USE_SDK=1 # (If you use cmd.exe)
-$env:DISTUTILS_USE_SDK=1 # (If you use PowerShell)
-```
-```bash
-# Get the versions corresponding to your compute platform at https://pytorch.org/
-pip install torch torchvision xformers --index-url https://download.pytorch.org/whl/cu128
-pip install cupy-cuda12x
-pip install -r requirements.txt
-```
-
-<details>
-<summary>Setup with CUDA 11.8</summary>
-Note that <code>xformers</code> will not be installed with CUDA 11.8 because it requires a version of PyTorch that is incompatible with our codebase.
-<pre><code>pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-pip install cupy-cuda11x
-pip install -r requirements.txt
-</code></pre>
-</details>
-
-<details>
-<summary>Installing CUDA within a Conda Environment</summary>
-If <code>nvcc --version</code> returns an error, you can install CUDA within your Conda environment. 
-After activating your environment and before installing PyTorch, run:
-<pre><code>conda install nvidia/label/cuda-12.8.0::cuda-nvcc
-</code></pre>
-Make sure to replace <code>12.8.0</code> with a version supported by your driver (check maximum version with <code>nvidia-smi</code>). A list of the available versions can be found <a href="https://anaconda.org/nvidia/cuda-nvcc">here</a>.
-</details>
-
-<details>
-<summary>Specifying Environment Path</summary>
-You can specify paths for Conda to save space on your system drive:
-<pre><code>conda config --add pkgs_dirs &lt;pkg_path&gt;
-conda create python=3.12 -y --prefix &lt;env_path&gt;/onthefly_nvs
-conda activate &lt;env_path&gt;/onthefly_nvs
-</code></pre>
-Where <code>&lt;pkg_path&gt;</code> is the desired package download location and <code>&lt;env_path&gt;/onthefly_nvs</code> is the desired environment location.
-</details>
-
 ## Data Guidelines
 > Please note that our method **is not a drop-in replacement for COLMAP + 3DGS, as it does not reorder images**. We require sequential capture that implies several constraints on the kind of data that can be handled. Please follow the **[Capture Guidelines](#capture-guidelines) for best results on your own data.**
 
 The dataloader will look for images in `${SOURCE_PATH}/images` by default. The images should be ordered alphabetically and have a `.png`, `.jpg` or `.jpeg` extension.
 It will also optionally look for [COLMAP files](https://colmap.github.io/format.html) in `${SOURCE_PATH}/sparse/0` for ground truth poses visualization.
-
-To download the datasets used in Table 1 of the paper, run:
-```bash
-# All datasets will be downloaded in data/
-python scripts/download_datasets.py --out_dir data/
-
-# Or download a specific dataset
-python scripts/download_datasets.py --out_dir data/ --datasets MipNeRF360 # or TUM, or StaticHikes
-```
 
 For best results, we recommend using a high-quality camera and providing still photographs to the method. We provide an experimental prototype for reconstruction from a [Video Stream](#video-stream) that will not provide the same level of quality.
 
@@ -132,10 +61,7 @@ python train.py -s ${SOURCE_PATH} -m ${MODEL_PATH}
 ```
 This command uses *all* input images, which provides the best result. Metrics in the paper are computed with evaluation protocol below (see [Evaluation](#evaluation)). See also the [Interactive Viewers](#interactive-viewers) section below for direct feedback on your training.
 <br>
-Example basic training command (see [Data Guidelines](#data-guidelines) for downloading the dataset):
-```bash
-python train.py -s data/MipNeRF360/garden -m results/MipNeRF360/garden
-```
+
 <details>
 <summary><span style="font-weight: bold;">Main Command Line Arguments for train.py</span></summary>
 
@@ -179,15 +105,6 @@ The following command runs the reconstruction while excluding every `${TEST_HOLD
 ```bash
 python train.py -s ${SOURCE_PATH} -m ${MODEL_PATH} --test_hold ${TEST_HOLD}
 ```
-Example (see [Data Guidelines](#data-guidelines) for downloading the dataset):
-```bash
-python train.py -s data/MipNeRF360/garden -m results/MipNeRF360/garden --test_hold 8 --test_frequency 20
-```
-
-To evaluate all scenes reported in Table 1 of the paper, run:
-```bash
-python scripts/train_eval_all.py --base_dir data/ --base_out_dir results/
-```
 
 ## Interactive Viewers
 The viewers allow navigation of the scene during and after optimization, and visualization of both optimized and ground truth poses. `W, A, S, D, Q, E` control camera translation and `I, K, J, L, U, O` control rotation. We release the base viewer components in a [separate repository](https://github.com/graphdeco-inria/graphdecoviewer) so that they can be used in other projects. If you find it useful, please consider citing it.
@@ -202,10 +119,6 @@ To open an interactive viewer window during the optimization process, use the fo
 ```bash
 python train.py -s ${SOURCE_PATH} --viewer_mode local
 ```
-Example (see [Data Guidelines](#data-guidelines) for downloading the dataset):
-```bash
-python train.py -s data/MipNeRF360/garden --viewer_mode local
-```
 
 This viewer operates concurrently with the optimization process. You can enable throttling by clicking the `Throttling` checkbox and adjust the `Max FPS` slider in the viewer to balance resource allocation between the viewer and the optimization task. Enabling the live optimization viewer will keep the optimization process running after the training is complete.
 
@@ -213,10 +126,6 @@ This viewer operates concurrently with the optimization process. You can enable 
 After [optimization](#optimization), you can visualize the reconstructed scene using the following command:
 ```bash
 python gaussianviewer.py local ${MODEL_PATH}
-```
-Example:
-```bash
-python gaussianviewer.py local results/MipNeRF360/garden
 ```
 
 ### Network Viewer
@@ -258,10 +167,7 @@ The following command renders the reconstruction saved in `${MODEL_PATH}` along 
 ```bash
 python scripts/render_path.py -m ${MODEL_PATH} --render_path ${RENDER_PATH} --out_dir ${VIDEO_DIR}
 ```
-Here, we render the reconstruction of the garden scene along the optimized poses (that `train.py` saves in `${MODEL_PATH}/colmap`):
-```bash
-python scripts/render_path.py -m results/MipNeRF360/garden --render_path results/MipNeRF360/garden/colmap --out_dir results/MipNeRF360/garden/video
-```
+
 
 <details>
 <summary><span style="font-weight: bold;">Aligning Render Path</span></summary>
@@ -277,12 +183,24 @@ As mentioned above, our method *is not a drop-in replacement for COLMAP and 3DGS
 It is important to carefully follow the guidelines below for the method to work and to achieve good results:
 * **Ordered Sequences**: Capture images sequentially with sufficient overlap. Ideally, consecutive frames should share >2/3rd of their content. This typically involves walking slowly around a scene and taking pictures sequentially. This works very well for outdoors scenes where one naturally moves forward; for indoors scenes, restrictions in space often lead to errors. Please see below on what to avoid. 
 Again, unordered datasets (e.g., Zip-NeRF-style, many DeepBlending scenes, etc.) are not supported.
+* **有序图像**：请按顺序拍摄图像，并确保相邻图像之间有足够的重叠区域。理想情况下，连续两帧应共享超过三分之二的内容。这通常意味着你需要围绕场景缓慢移动并依次拍摄。这种方法对于自然向前移动的室外场景效果很好；而对于室内场景，由于空间受限，往往容易出错。请参阅下文关于需要避免的情况。
+再次强调，本方法不支持无序数据集（例如 Zip-NeRF 风格、许多 DeepBlending 场景等）。
+
 * **Translation**: Ensure sufficient translation between consecutive frames for accurate triangulation. 
 Avoid rotation without translation: taking a step sideways between pictures when turning helps maintain a sufficient baseline, especially indoors. 
 This is critical for bootstrapping, as an insufficient translation can lead to incorrect focal length estimation, but is also important throughout capture.
+* **平移**：确保连续帧之间存在足够的平移量，以实现精确的三角测量。
+避免仅旋转而不平移：尤其在室内拍摄时，转动相机的同时向侧方迈出一步，有助于保持足够的基线长度。
+这一点对于重建的初始引导至关重要，因为平移不足可能导致焦距估计错误，同时在采集过程中也十分重要。
+
 * **Resolution**: We found that the matcher performs best within the 1-2MP range.
+* **分辨率**：我们发现，匹配器在1-2百万像素的分辨率范围内性能最佳。
+
 * **Pinhole Camera Model**: We optimize only for focal length, so ensure your images follow a pinhole projection with centered principal point (no fisheye/distortion).
+* **针孔相机模型**：我们仅优化焦距，因此请确保您的图像符合主点居中的针孔投影模型（无鱼眼/畸变）。
+
 * **No Loop Closure**: Drift compensation is not performed when the trajectory revisits a previously reconstructed region. This can cause misalignments due to accumulated pose errors, especially after registering a long sequence between the start and end of the loop. For small loops (e.g., the Truck scene from the T and T dataset) our method works well.
+* **无闭环检测**：当轨迹重新访问先前重建过的区域时，不会执行漂移补偿。这可能导致由于累积的位姿误差而产生错位，特别是在注册了闭环起点与终点之间的长序列之后。对于较小的闭环（例如 T and T 数据集中的 Truck 场景），我们的方法效果良好。
 
 ### Example Failure Cases:
 <table>
@@ -406,7 +324,3 @@ Live reconstruction monitored with the remote viewer:
 
 https://github.com/user-attachments/assets/f484e3b9-0dfc-48e9-b05d-f0cf30114ad7
 
-## Acknowledgments
-This work was funded by the European Research Council (ERC) Advanced Grant NERPHYS, number 101141721 [https://project.inria.fr/nerphys/](https://project.inria.fr/nerphys). The authors are grateful to the OPAL infrastructure of the Université Côte d'Azur for providing resources and support, as well as Adobe and NVIDIA for software and hardware donations. This work was granted access to the HPC resources of IDRIS under the allocation AD011015561 made by GENCI.
-Bernhard Kerbl has received funding by WWTF (project ICT22-055 - Instant Visualization and Interaction for Large Point Clouds).
-Thanks to Peter Hedman for early comments and suggestions, George Kopanas for proofreading a draft, and Jeffrey Hu for setting up the phone-based capture.
