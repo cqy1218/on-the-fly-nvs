@@ -86,6 +86,7 @@ if __name__ == "__main__":
         viewer_thd = Thread(target=viewer.run, daemon=True)
         viewer_thd.start()
 
+    #######################################################################################################
     n_active_keyframes = 0
     n_keyframes = 0
     needs_reboot = False
@@ -93,13 +94,13 @@ if __name__ == "__main__":
     bootstrap_desc_kpts = []
 
     # Dict of runtimes for each step
-    runtimes = ["Load", "BAB", "tri", "BAI", "Add", "Init", "Opt", "anc"]
-    runtimes = {key: [0, 0] for key in runtimes}
-    metrics = {}
+    runtimes = ["Load", "BAB", "tri", "BAI", "Add", "Init", "Opt", "anc"]  # 中文解释：加载、Bootstrap、三角化、位姿初始化、添加关键帧、初始化、优化、其他
+    runtimes = {key: [0, 0] for key in runtimes}  # 解释：每个步骤的运行时间和调用次数，格式为{步骤: [总时间, 调用次数]}，用于计算平均时间
+    metrics = {}  # 解释：用于存储评估指标的字典，在训练过程中会不断更新和显示在进度条上，例如重投影误差、深度误差等
 
     ## Scene reconstruction
     print(f"Starting reconstruction for {args.source_path}")
-    pbar = tqdm(range(0, len(dataset)))
+    pbar = tqdm(range(0, len(dataset)))  # 解释：创建一个进度条，范围从0到数据集的长度，用于显示训练过程中的进度和状态
     reconstruction_start_time = time.time()
     for frameID in pbar:
         start_time = time.time()
@@ -119,6 +120,10 @@ if __name__ == "__main__":
                 viewer.trainer_state = "finish"
                 break
         
+        # 刚启动时，n_keyframes为0，说明还没有关键帧被添加到场景模型中。
+        # 这时需要从数据集中获取第一帧图像，并使用特征检测器提取特征点和描述符。
+        # 然后将这第一帧图像和相关信息保存在bootstrap_keyframe_dicts列表中，将提取的特征点和描述符保存在bootstrap_desc_kpts列表中。
+        # 最后将n_keyframes增加1，表示已经有一个关键帧了。
         if n_keyframes == 0:
             image, info = dataset.getnext()
             prev_desc_kpts = detector(image)
@@ -127,6 +132,10 @@ if __name__ == "__main__":
             n_keyframes += 1
             continue
 
+        # 对于后续的每一帧图像，首先从数据集中获取图像和相关信息，然后使用特征检测器提取当前帧的特征点和描述符。
+        # 接着使用特征匹配器将当前帧的特征点与前一帧的特征点进行匹配，得到匹配的特征点对。
+        # 根据匹配的特征点对计算它们之间的距离，并根据距离的中位数和匹配的数量来判断是否应该将当前帧添加为一个新的关键帧。
+        # 如果当前帧是测试帧（info["is_test"]为True），则无论匹配情况如何都将其添加为关键帧，以便后续评估其位姿。
         image, info = dataset.getnext()
         desc_kpts = detector(image)
         # Match features between the previous and current frame
@@ -141,6 +150,13 @@ if __name__ == "__main__":
         should_add_keyframe |= info["is_test"]
         increment_runtime(runtimes["Load"], start_time)
 
+        # 如果should_add_keyframe为True，说明当前帧满足添加为关键帧的条件。
+        # 首先会进行Bootstrap阶段，如果当前关键帧数量小于args.num_keyframes_miniba_bootstrap，
+        # 则将当前帧的图像和相关信息保存在bootstrap_keyframe_dicts列表中，将提取的特征点和描述符保存在bootstrap_desc_kpts列表中。
+        # 当关键帧数量达到args.num_keyframes_miniba_bootstrap - 1时，使用pose_initializer对bootstrap_desc_kpts中的特征点进行位姿初始化，
+        # 得到每个关键帧的位姿Rts和焦距f。然后将这些关键帧添加到场景模型中，并运行初始优化。
+        # 如果当前帧不是Bootstrap阶段，则进入增量重建阶段，
+        # 使用pose_initializer.initialize_incremental方法根据之前的关键帧和当前帧的特征点进行位姿初始化，并将新的关键帧添加到场景模型中。
         if should_add_keyframe:
             ## Bootstrap
             # Accumulate keyframes for pose initialization
@@ -157,6 +173,9 @@ if __name__ == "__main__":
                     zip(bootstrap_keyframe_dicts, bootstrap_desc_kpts, Rts)
                 ):
                     start_time = time.time()
+                    # 中文解释：如果使用colmap的位姿，则直接从keyframe_dict中获取Rt和f，
+                    # 否则使用pose_initializer计算得到的Rt和f来创建Keyframe对象，并将其添加到场景模型中。
+                    # 这里的Keyframe对象包含了图像、相关信息、特征点和描述符、位姿等信息，以及一些用于后续优化的模块如dense_extractor、depth_estimator和triangulator。
                     if args.use_colmap_poses:
                         Rt = keyframe_dict["info"]["Rt"]
                         f = keyframe_dict["info"]["focal"]
