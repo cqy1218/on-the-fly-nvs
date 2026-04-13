@@ -210,12 +210,14 @@ if __name__ == "__main__":
                 increment_runtime(runtimes["Opt"], start_time)
                 last_reboot = n_keyframes
 
+            # 中文解释：在增量重建阶段，如果满足条件should_add_keyframe为True，则首先检查是否需要进行重启（reboot）。
             ## Reboot
             if (
                 args.enable_reboot
                 and scene_model.approx_cam_centres is not None
                 and len(scene_model.anchors)
             ):
+                # 检查：如果相机基线（camera baseline）与预期相比过大或过小，并且自上次重启以来已经添加了足够多的关键帧（超过50个），则需要进行重启。
                 # Check if the camera baseline is a lot smaller or larger than expected
                 last_centers = scene_model.approx_cam_centres[-20:]
                 rel_dist = torch.norm(
@@ -224,6 +226,7 @@ if __name__ == "__main__":
                 needs_reboot = (
                     rel_dist > 0.1 * 5 or rel_dist < 0.1 / 3
                 ) and n_keyframes - last_reboot > 50
+            # 如果需要重启（needs_reboot为True），则会在最后8个关键帧上运行一个小规模的BA（Bundle Adjustment）来重新估计它们的位姿。
             if needs_reboot:
                 # Reboot: run mini BA on the last 8 keyframes
                 bs_kfs = scene_model.keyframes[-8:]
@@ -232,6 +235,7 @@ if __name__ == "__main__":
                 Rts, _, final_residual = pose_initializer.initialize_bootstrap(
                     bootstrap_desc_kpts, rebooting=True
                 )
+                # 如果重启成功（final_residual小于max_error的一半），则将重新估计的位姿Rts应用到最后8个关键帧上，并重置场景模型，重新初始化高斯分布，并运行优化。
                 # Check if the reboot succeeded
                 if final_residual < max_error * 0.5:
                     Rts = align_mean_up_fwd(Rts, in_Rts)
@@ -246,6 +250,7 @@ if __name__ == "__main__":
                     needs_reboot = False
                     last_reboot = n_keyframes
 
+            # 在增量重建阶段，如果当前关键帧数量n_keyframes已经达到args.num_keyframes_miniba_bootstrap，则会进行增量位姿初始化。
             ## Incremental reconstruction
             # Incremental pose initialization
             if n_keyframes >= args.num_keyframes_miniba_bootstrap:
@@ -292,6 +297,8 @@ if __name__ == "__main__":
                 else:
                     should_add_keyframe = False
 
+        # 如果should_add_keyframe为False，说明当前帧不满足添加为关键帧的条件，
+        # 此时会继续使用上一帧的特征点和描述符进行匹配，并更新prev_desc_kpts为当前帧的特征点和描述符，以便下一次迭代使用。
         if should_add_keyframe:
             ## Check if anchor creation is needed based on the primitives' size 
             start_time = time.time()
@@ -354,6 +361,7 @@ if __name__ == "__main__":
         )
     )
 
+    # 在完成增量重建阶段后，如果args.save_at_finetune_epoch中指定了要保存的微调(epoch)的数量，则会进入微调阶段。
     # Fine tuning after initial reconstruction
     if len(args.save_at_finetune_epoch) > 0:
         finetune_epochs = max(args.save_at_finetune_epoch)
